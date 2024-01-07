@@ -38,22 +38,6 @@ def stackImages(imgArray,scale,lables=[]):
                 cv2.putText(ver,lables[d][c],(eachImgWidth*c+10,eachImgHeight*d+20),cv2.FONT_HERSHEY_COMPLEX,0.7,(255,0,255),2)
     return ver
 
-def reorder(myPoints):
-
-    myPoints = myPoints.reshape((4, 2)) # REMOVE EXTRA BRACKET
-    print(myPoints)
-    myPointsNew = np.zeros((4, 1, 2), np.int32) # NEW MATRIX WITH ARRANGED POINTS
-    add = myPoints.sum(1)
-    print(add)
-    print(np.argmax(add))
-    myPointsNew[0] = myPoints[np.argmin(add)]  #[0,0]
-    myPointsNew[3] =myPoints[np.argmax(add)]   #[w,h]
-    diff = np.diff(myPoints, axis=1)
-    myPointsNew[1] =myPoints[np.argmin(diff)]  #[w,0]
-    myPointsNew[2] = myPoints[np.argmax(diff)] #[h,0]
-
-    return myPointsNew
-
 def rectContour(contours):
 
     rectCon = []
@@ -74,14 +58,34 @@ def getCornerPoints(cont):
     approx = cv2.approxPolyDP(cont, 0.02 * peri, True) # APPROXIMATE THE POLY TO GET CORNER POINTS
     return approx
 
+def reorder(myPoints):
+
+    myPoints = myPoints.reshape((4, 2)) # REMOVE EXTRA BRACKET
+    myPointsNew = np.zeros((4, 1, 2), np.int32) # NEW MATRIX WITH ARRANGED POINTS
+    add = myPoints.sum(1)
+    myPointsNew[0] = myPoints[np.argmin(add)]  #[0,0]
+    myPointsNew[3] =myPoints[np.argmax(add)]   #[w,h]
+    diff = np.diff(myPoints, axis=1)
+    myPointsNew[1] =myPoints[np.argmin(diff)]  #[w,0]
+    myPointsNew[2] = myPoints[np.argmax(diff)] #[h,0]
+
+    return myPointsNew
+
 def splitBoxes(img):
-    rows = np.vsplit(img,5)
-    boxes=[]
-    for r in rows:
-        cols= np.hsplit(r,5)
-        for box in cols:
-            boxes.append(box)
-    return boxes
+    rows, cols= img.shape
+    img = img[65:rows-65, :]
+
+    cols = np.hsplit(img, 5)
+    box_Options=[]
+    for c in cols:
+        rows = np.vsplit(c, 10)
+        for box in rows:
+            rows_box, cols_box = img.shape
+            box = box[:, 128:600]
+            cols_box = np.hsplit(box, 4)
+            for cb in cols_box:
+                box_Options.append(cb)
+    return box_Options
 
 def drawGrid(img,questions=5,choices=5):
     secW = int(img.shape[1]/questions)
@@ -96,28 +100,32 @@ def drawGrid(img,questions=5,choices=5):
 
     return img
 
-def showAnswers(img,myIndex,grading,ans,questions=5,choices=5):
-     secW = int(img.shape[1]/questions)
-     secH = int(img.shape[0]/choices)
+def showAnswers(img,myIndex,grading,ans, sections = 5):
+     secW = 190
+     secH = 190
+     for section in range(sections):
+         for x in range(0,10):
+            myAns = myIndex[(section * 10) + x]
+            cX = (myAns * 117) + secH
+            cY = ((x * 223) + secW) + x*8
+            if grading[(section * 10) + x]==1:
+                myColor = (0,255,0)
+                #cv2.rectangle(img,(myAns*secW,x*secH),((myAns*secW)+secW,(x*secH)+secH),myColor,cv2.FILLED)
+                cv2.circle(img,(cX,cY),50,myColor,cv2.FILLED)
+            else:
+                myColor = (0,0,255)
+                #cv2.rectangle(img, (myAns * secW, x * secH), ((myAns * secW) + secW, (x * secH) + secH), myColor, cv2.FILLED)
+                cv2.circle(img, (cX, cY), 50, myColor, cv2.FILLED)
 
-     for x in range(0,questions):
-         myAns= myIndex[x]
-         cX = (myAns * secW) + secW // 2
-         cY = (x * secH) + secH // 2
-         if grading[x]==1:
-            myColor = (0,255,0)
-            #cv2.rectangle(img,(myAns*secW,x*secH),((myAns*secW)+secW,(x*secH)+secH),myColor,cv2.FILLED)
-            cv2.circle(img,(cX,cY),50,myColor,cv2.FILLED)
-         else:
-            myColor = (0,0,255)
-            #cv2.rectangle(img, (myAns * secW, x * secH), ((myAns * secW) + secW, (x * secH) + secH), myColor, cv2.FILLED)
-            cv2.circle(img, (cX, cY), 50, myColor, cv2.FILLED)
+                # CORRECT ANSWER
+                myColor = (0, 255, 0)
+                correctAns = ans[(section * 10) + x]
+                cv2.circle(img,((correctAns * 117) + secH, ((x * 223) + secW) + x*8),20,myColor,cv2.FILLED)
 
-            # CORRECT ANSWER
-            myColor = (0, 255, 0)
-            correctAns = ans[x]
-            cv2.circle(img,((correctAns * secW)+secW//2, (x * secH)+secH//2),
-            20,myColor,cv2.FILLED)
+         secH += (740 - section * 20)
+
+     return img
+
 
 
 
